@@ -4,8 +4,7 @@ service: authors-books-serverless
 frameworkVersion: '2 || 3'
 
 package:
-  exclude:
-    - node_modules/.pnpm/**
+  exclude:    
     - node_modules/typescript/**
     - node_modules/@types/**
     - node_modules/aws-sdk/**
