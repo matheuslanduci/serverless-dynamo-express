@@ -1,0 +1,9 @@
+# Compiled output
+node_modules
+dist
+
+# Environment variables
+.env
+
+# Serverless output
+.serverless/

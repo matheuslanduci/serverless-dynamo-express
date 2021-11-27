@@ -1,0 +1,66 @@
+org: matheuslanduci
+app: authors-books-serverless
+service: authors-books-serverless
+frameworkVersion: '2 || 3'
+
+package:
+  exclude:
+    - node_modules/.pnpm/**
+    - node_modules/typescript/**
+    - node_modules/@types/**
+    - node_modules/aws-sdk/**
+
+custom:
+  authorsTable: 'authors'
+  booksTable: 'books'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: '20201221'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [AuthorsTable, Arn]
+            - Fn::GetAtt: [BooksTable, Arn]
+  region: sa-east-1
+
+functions:
+  api:
+    handler: dist/handler.js
+    events:
+      - httpApi: '*'
+
+resources:
+  Resources:
+    AuthorsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.authorsTable}
+    BooksTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.booksTable}
