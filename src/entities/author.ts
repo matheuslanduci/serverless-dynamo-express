@@ -2,19 +2,19 @@ import { Book } from './book'
 
 export interface Author {
   id: string
-  name: string
+  fullName: string
   country: string
   birthDate: string
 }
 
 export interface AuthorInput {
-  name: string
+  fullName: string
   country: string
   birthDate: string
 }
 
 export interface AuthorUpdateInput {
-  name?: string
+  fullName?: string
   country?: string
   birthDate?: string
 }

@@ -1,34 +1,26 @@
 import { Request, Response } from 'express'
 import { AuthorsService } from '../services/authors'
 
+const authorsService = new AuthorsService()
+
 export class AuthorsController {
-  private readonly authorsService: AuthorsService
-
-  constructor() {
-    this.authorsService = new AuthorsService()
-  }
-
   async index(_req: Request, res: Response) {
-    const authors = await this.authorsService.findAll()
+    const authors = await authorsService.findAll()
 
     res.json(authors)
   }
 
   async show(req: Request, res: Response) {
-    const author = await this.authorsService.findOne(req.params.id)
-
-    if (!author) {
-      throw new Error('Author not found with provided ID.')
-    }
+    const author = await authorsService.findOne(req.params.id)
 
     res.json(author)
   }
 
   async store(req: Request, res: Response) {
-    const { name, country, birthDate } = req.body
+    const { fullName, country, birthDate } = req.body
 
-    const author = await this.authorsService.create({
-      name,
+    const author = await authorsService.create({
+      fullName,
       birthDate,
       country,
     })
@@ -38,19 +30,19 @@ export class AuthorsController {
 
   async update(req: Request, res: Response) {
     const id = req.params.id
-    const { name, country, birthDate } = req.body
+    const { fullName, country, birthDate } = req.body
 
-    const author = await this.authorsService.update(id, {
-      name,
-      birthDate,
-      country,
+    const author = await authorsService.update(id, {
+      fullName: fullName || null,
+      birthDate: birthDate || null,
+      country: country || null,
     })
 
     res.json(author)
   }
 
   async destroy(req: Request, res: Response) {
-    await this.authorsService.delete(req.params.id)
+    await authorsService.delete(req.params.id)
 
     res.json({
       message: 'Author deleted successfully.',

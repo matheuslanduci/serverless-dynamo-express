@@ -1,4 +1,5 @@
-import dynamoDbClient, { BOOKS_TABLE } from '../db/dynamo'
+import { v4 as randomUUID } from 'uuid'
+import dynamoDbClient, { AUTHORS_TABLE, BOOKS_TABLE } from '../db/dynamo'
 
 import type {
   Book,
@@ -7,19 +8,32 @@ import type {
   BookWithAuthor,
 } from '../entities/book'
 
-export class BooksServices {
+export class BooksService {
   async findAll(): Promise<BookWithAuthor[]> {
     const books = await dynamoDbClient
       .scan({
         TableName: BOOKS_TABLE,
-        ProjectionExpression: 'id, name, releaseDate, authorId, #author',
-        ExpressionAttributeNames: {
-          '#author': 'author',
-        },
+        ProjectionExpression: 'id, fullName, releaseDate, authorId',
       })
       .promise()
 
-    return books.Items as BookWithAuthor[]
+    const items = books.Items
+
+    for (const book of items) {
+      const author = await dynamoDbClient
+        .get({
+          TableName: AUTHORS_TABLE,
+          Key: {
+            id: book.authorId,
+          },
+          ProjectionExpression: 'id, fullName, country, birthDate',
+        })
+        .promise()
+
+      book.author = author.Item
+    }
+
+    return items as BookWithAuthor[]
   }
 
   async findOne(id: string): Promise<BookWithAuthor> {
@@ -29,21 +43,36 @@ export class BooksServices {
         Key: {
           id,
         },
-        ProjectionExpression: 'id, name, releaseDate, authorId, #author',
+        ProjectionExpression: 'id, fullName, releaseDate, authorId, #author',
         ExpressionAttributeNames: {
           '#author': 'author',
         },
       })
       .promise()
 
-    return books.Item as BookWithAuthor
+    const author = await dynamoDbClient
+      .get({
+        TableName: AUTHORS_TABLE,
+        Key: {
+          id: books.Item.authorId,
+        },
+        ProjectionExpression: 'id, fullName, country, birthDate',
+      })
+      .promise()
+
+    const bookWithAuthor = {
+      ...books.Item,
+      author: author.Item,
+    }
+
+    return bookWithAuthor as BookWithAuthor
   }
 
   async findAllByAuthorId(authorId: string): Promise<Book[]> {
     const books = await dynamoDbClient
-      .query({
+      .scan({
         TableName: BOOKS_TABLE,
-        KeyConditionExpression: 'authorId = :authorId',
+        FilterExpression: 'authorId = :authorId',
         ExpressionAttributeValues: {
           ':authorId': authorId,
         },
@@ -57,7 +86,10 @@ export class BooksServices {
     const createdBook = await dynamoDbClient
       .put({
         TableName: BOOKS_TABLE,
-        Item: book,
+        Item: {
+          id: randomUUID(),
+          ...book,
+        },
       })
       .promise()
 
@@ -65,15 +97,20 @@ export class BooksServices {
   }
 
   async update(id: string, book: BookUpdateInput): Promise<Book> {
-    const updateExpresion = Object.keys(book)
-      .map((key) => `${key} = :${key}`)
-      .join(', ')
+    const updateExpresion = String('SET ').concat(
+      Object.keys(book)
+        .filter((key) => !!book[key])
+        .map((key) => `${key} = :${key}`)
+        .join(', ')
+    )
 
-    const expressionAttributeValues = Object.keys(book).reduce((acc, key) => {
-      acc[`:${key}`] = book[key]
+    const expressionAttributeValues = Object.keys(book)
+      .filter((key) => !!book[key])
+      .reduce((acc, key) => {
+        acc[`:${key}`] = book[key]
 
-      return acc
-    }, {})
+        return acc
+      }, {})
 
     const updatedBook = await dynamoDbClient
       .update({

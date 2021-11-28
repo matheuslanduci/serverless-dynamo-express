@@ -8,7 +8,7 @@ router.get('/', booksController.index)
 router.get('/author/:id', booksController.showAuthorBooks)
 router.get('/:id', booksController.show)
 router.post('/', booksController.store)
-router.put('/:id', booksController.update)
+router.patch('/:id', booksController.update)
 router.delete('/:id', booksController.destroy)
 
 export default router

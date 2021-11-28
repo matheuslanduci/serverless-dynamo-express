@@ -7,7 +7,7 @@ const authorsController = new AuthorsController()
 router.get('/', authorsController.index)
 router.get('/:id', authorsController.show)
 router.post('/', authorsController.store)
-router.put('/:id', authorsController.update)
+router.patch('/:id', authorsController.update)
 router.delete('/:id', authorsController.destroy)
 
 export default router

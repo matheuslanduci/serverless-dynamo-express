@@ -1,4 +1,5 @@
-import dynamoDbClient, { AUTHORS_TABLE } from '../db/dynamo'
+import { v4 as randomUUID } from 'uuid'
+import dynamoDbClient, { AUTHORS_TABLE, BOOKS_TABLE } from '../db/dynamo'
 
 import type {
   Author,
@@ -12,14 +13,27 @@ export class AuthorsService {
     const authors = await dynamoDbClient
       .scan({
         TableName: AUTHORS_TABLE,
-        ProjectionExpression: 'id, name, country, birthDate, #books',
-        ExpressionAttributeNames: {
-          '#books': 'books',
-        },
+        ProjectionExpression: 'id, fullName, country, birthDate',
       })
       .promise()
 
-    return authors.Items as AuthorWithBooks[]
+    const items = authors.Items
+
+    for (const author of items) {
+      const authorWithBooks = await dynamoDbClient
+        .scan({
+          TableName: BOOKS_TABLE,
+          FilterExpression: 'authorId = :authorId',
+          ExpressionAttributeValues: {
+            ':authorId': author.id,
+          },
+        })
+        .promise()
+
+      author.books = authorWithBooks.Items
+    }
+
+    return items as AuthorWithBooks[]
   }
 
   async findOne(id: string): Promise<AuthorWithBooks> {
@@ -29,37 +43,57 @@ export class AuthorsService {
         Key: {
           id,
         },
-        ProjectionExpression: 'id, name, country, birthDate, #books',
-        ExpressionAttributeNames: {
-          '#books': 'books',
+        ProjectionExpression: 'id, fullName, country, birthDate',
+      })
+      .promise()
+
+    const books = await dynamoDbClient
+      .scan({
+        TableName: BOOKS_TABLE,
+        FilterExpression: 'authorId = :authorId',
+        ExpressionAttributeValues: {
+          ':authorId': id,
         },
       })
       .promise()
 
-    return author.Item as AuthorWithBooks
+    const authorWithBooks = {
+      ...author.Item,
+      books: books.Items,
+    } as AuthorWithBooks
+
+    return authorWithBooks
   }
 
   async create(author: AuthorInput): Promise<Author> {
     const createdAuthor = await dynamoDbClient
       .put({
         TableName: AUTHORS_TABLE,
-        Item: author,
+        Item: {
+          id: randomUUID(),
+          ...author,
+        },
       })
       .promise()
 
     return createdAuthor.Attributes as Author
   }
 
-  async update(id: string, author: AuthorUpdateInput): Promise<Author> {    
-    const updateExpresion = Object.keys(author)
-      .map((key) => `${key} = :${key}`)
-      .join(', ')
+  async update(id: string, author: AuthorUpdateInput): Promise<Author> {
+    const updateExpresion = String('SET ').concat(
+      Object.keys(author)
+        .filter((key) => !!author[key])
+        .map((key) => `${key} = :${key}`)
+        .join(', ')
+    )
 
-    const expressionAttributeValues = Object.keys(author).reduce((acc, key) => {
-      acc[`:${key}`] = author[key]
+    const expressionAttributeValues = Object.keys(author)
+      .filter((key) => !!author[key])
+      .reduce((acc, key) => {
+        acc[`:${key}`] = author[key]
 
-      return acc
-    }, {})
+        return acc
+      }, {})
 
     const updatedAuthor = await dynamoDbClient
       .update({

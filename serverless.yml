@@ -26,10 +26,13 @@ provider:
             - Fn::GetAtt: [AuthorsTable, Arn]
             - Fn::GetAtt: [BooksTable, Arn]
   region: sa-east-1
+  environment:
+    AUTHORS_TABLE: 'authors'
+    BOOKS_TABLE: 'books'
 
 functions:
   api:
-    handler: dist/handler.js
+    handler: dist/handler.handler
     events:
       - httpApi: '*'
 
@@ -57,3 +60,6 @@ resources:
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:custom.booksTable}
+
+plugins:
+  - serverless-offline
