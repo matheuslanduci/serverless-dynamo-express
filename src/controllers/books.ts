@@ -1,7 +1,8 @@
 import { Request, Response } from 'express'
+import dynamoDbClient from '../db/dynamo'
 import { BooksService } from '../services/books'
 
-const booksService = new BooksService()
+const booksService = new BooksService(dynamoDbClient)
 
 export class BooksController {
   async index(req: Request, res: Response) {
@@ -38,10 +39,7 @@ export class BooksController {
     const id = req.params.id
     const { fullName, releaseDate } = req.body
 
-    const book = await booksService.update(id, {
-      fullName: fullName || null,
-      releaseDate: releaseDate || null,
-    })
+    const book = await booksService.update(id, { fullName, releaseDate })
 
     res.json(book)
   }

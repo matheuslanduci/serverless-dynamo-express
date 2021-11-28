@@ -1,5 +1,6 @@
+import { DocumentClient } from 'aws-sdk/clients/dynamodb'
 import { v4 as randomUUID } from 'uuid'
-import dynamoDbClient, { AUTHORS_TABLE, BOOKS_TABLE } from '../db/dynamo'
+import { AUTHORS_TABLE, BOOKS_TABLE } from '../db/dynamo'
 
 import type {
   Author,
@@ -9,8 +10,10 @@ import type {
 } from '../entities/author'
 
 export class AuthorsService {
+  constructor(private readonly dynamoDbClient: DocumentClient) {}
+
   async findAll(): Promise<AuthorWithBooks[]> {
-    const authors = await dynamoDbClient
+    const authors = await this.dynamoDbClient
       .scan({
         TableName: AUTHORS_TABLE,
         ProjectionExpression: 'id, fullName, country, birthDate',
@@ -20,7 +23,7 @@ export class AuthorsService {
     const items = authors.Items
 
     for (const author of items) {
-      const authorWithBooks = await dynamoDbClient
+      const authorWithBooks = await this.dynamoDbClient
         .scan({
           TableName: BOOKS_TABLE,
           FilterExpression: 'authorId = :authorId',
@@ -37,7 +40,7 @@ export class AuthorsService {
   }
 
   async findOne(id: string): Promise<AuthorWithBooks> {
-    const author = await dynamoDbClient
+    const author = await this.dynamoDbClient
       .get({
         TableName: AUTHORS_TABLE,
         Key: {
@@ -47,7 +50,7 @@ export class AuthorsService {
       })
       .promise()
 
-    const books = await dynamoDbClient
+    const books = await this.dynamoDbClient
       .scan({
         TableName: BOOKS_TABLE,
         FilterExpression: 'authorId = :authorId',
@@ -66,13 +69,14 @@ export class AuthorsService {
   }
 
   async create(author: AuthorInput): Promise<Author> {
-    const createdAuthor = await dynamoDbClient
+    const createdAuthor = await this.dynamoDbClient
       .put({
         TableName: AUTHORS_TABLE,
         Item: {
           id: randomUUID(),
           ...author,
         },
+        ReturnValues: 'ALL_OLD',
       })
       .promise()
 
@@ -95,7 +99,7 @@ export class AuthorsService {
         return acc
       }, {})
 
-    const updatedAuthor = await dynamoDbClient
+    const updatedAuthor = await this.dynamoDbClient
       .update({
         TableName: AUTHORS_TABLE,
         Key: {
@@ -103,6 +107,7 @@ export class AuthorsService {
         },
         UpdateExpression: updateExpresion,
         ExpressionAttributeValues: expressionAttributeValues,
+        ReturnValues: 'ALL_NEW',
       })
       .promise()
 
@@ -110,7 +115,7 @@ export class AuthorsService {
   }
 
   async delete(id: string): Promise<void> {
-    await dynamoDbClient
+    await this.dynamoDbClient
       .delete({
         TableName: AUTHORS_TABLE,
         Key: {

@@ -1,7 +1,8 @@
 import { Request, Response } from 'express'
+import dynamoDbClient from '../db/dynamo'
 import { AuthorsService } from '../services/authors'
 
-const authorsService = new AuthorsService()
+const authorsService = new AuthorsService(dynamoDbClient)
 
 export class AuthorsController {
   async index(_req: Request, res: Response) {

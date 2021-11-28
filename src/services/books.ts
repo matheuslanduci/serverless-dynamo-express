@@ -1,5 +1,6 @@
+import { DocumentClient } from 'aws-sdk/clients/dynamodb'
 import { v4 as randomUUID } from 'uuid'
-import dynamoDbClient, { AUTHORS_TABLE, BOOKS_TABLE } from '../db/dynamo'
+import { AUTHORS_TABLE, BOOKS_TABLE } from '../db/dynamo'
 
 import type {
   Book,
@@ -9,8 +10,10 @@ import type {
 } from '../entities/book'
 
 export class BooksService {
+  constructor(private readonly dynamoDbClient: DocumentClient) {}
+
   async findAll(): Promise<BookWithAuthor[]> {
-    const books = await dynamoDbClient
+    const books = await this.dynamoDbClient
       .scan({
         TableName: BOOKS_TABLE,
         ProjectionExpression: 'id, fullName, releaseDate, authorId',
@@ -20,7 +23,7 @@ export class BooksService {
     const items = books.Items
 
     for (const book of items) {
-      const author = await dynamoDbClient
+      const author = await this.dynamoDbClient
         .get({
           TableName: AUTHORS_TABLE,
           Key: {
@@ -37,7 +40,7 @@ export class BooksService {
   }
 
   async findOne(id: string): Promise<BookWithAuthor> {
-    const books = await dynamoDbClient
+    const books = await this.dynamoDbClient
       .get({
         TableName: BOOKS_TABLE,
         Key: {
@@ -50,7 +53,7 @@ export class BooksService {
       })
       .promise()
 
-    const author = await dynamoDbClient
+    const author = await this.dynamoDbClient
       .get({
         TableName: AUTHORS_TABLE,
         Key: {
@@ -69,7 +72,7 @@ export class BooksService {
   }
 
   async findAllByAuthorId(authorId: string): Promise<Book[]> {
-    const books = await dynamoDbClient
+    const books = await this.dynamoDbClient
       .scan({
         TableName: BOOKS_TABLE,
         FilterExpression: 'authorId = :authorId',
@@ -83,13 +86,14 @@ export class BooksService {
   }
 
   async create(book: BookInput): Promise<Book> {
-    const createdBook = await dynamoDbClient
+    const createdBook = await this.dynamoDbClient
       .put({
         TableName: BOOKS_TABLE,
         Item: {
           id: randomUUID(),
           ...book,
         },
+        ReturnValues: 'ALL_OLD',
       })
       .promise()
 
@@ -112,7 +116,7 @@ export class BooksService {
         return acc
       }, {})
 
-    const updatedBook = await dynamoDbClient
+    const updatedBook = await this.dynamoDbClient
       .update({
         TableName: BOOKS_TABLE,
         Key: {
@@ -127,7 +131,7 @@ export class BooksService {
   }
 
   async delete(id: string): Promise<void> {
-    await dynamoDbClient
+    await this.dynamoDbClient
       .delete({
         TableName: BOOKS_TABLE,
         Key: {
